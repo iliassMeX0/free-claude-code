@@ -137,6 +137,10 @@ class OpenAICompatibleProvider(BaseProvider):
         sse = SSEBuilder(message_id, request.model, input_tokens)
 
         body = self._build_request_body(request)
+
+        extra_body_keys = {"thinking"}
+        extra_body = {k: body.pop(k) for k in extra_body_keys if k in body}
+
         req_tag = f" request_id={request_id}" if request_id else ""
         logger.info(
             "{}_STREAM:{} model={} msgs={} tools={}",
@@ -159,8 +163,11 @@ class OpenAICompatibleProvider(BaseProvider):
 
         async with self._global_rate_limiter.concurrency_slot():
             try:
+                create_kwargs = {**body, "stream": True}
+                if extra_body:
+                    create_kwargs["extra_body"] = extra_body
                 stream = await self._global_rate_limiter.execute_with_retry(
-                    self._client.chat.completions.create, **body, stream=True
+                    self._client.chat.completions.create, **create_kwargs
                 )
                 async for chunk in stream:
                     if getattr(chunk, "usage", None):

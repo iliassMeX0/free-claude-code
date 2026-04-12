@@ -4,10 +4,14 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
 
-from .nim import NimSettings
+load_dotenv()
+
+from pydantic import Field, field_validator, model_validator  # noqa: E402
+from pydantic_settings import BaseSettings, SettingsConfigDict  # noqa: E402
+
+from .nim import NimSettings  # noqa: E402
 
 
 def _env_files() -> tuple[Path, ...]:
@@ -46,6 +50,13 @@ class Settings(BaseSettings):
     llamacpp_base_url: str = Field(
         default="http://localhost:8080/v1",
         validation_alias="LLAMACPP_BASE_URL",
+    )
+
+    # ==================== Z.ai Config ====================
+    zai_api_key: str = Field(default="", validation_alias="ZAI_API_KEY")
+    zai_base_url: str = Field(
+        default="https://api.z.ai/api/coding/paas/v4",
+        validation_alias="ZAI_BASE_URL",
     )
 
     # ==================== Model ====================
@@ -159,7 +170,7 @@ class Settings(BaseSettings):
     def validate_model_format(cls, v: str | None) -> str | None:
         if v is None:
             return None
-        valid_providers = ("nvidia_nim", "open_router", "lmstudio", "llamacpp")
+        valid_providers = ("nvidia_nim", "open_router", "lmstudio", "llamacpp", "glm")
         if "/" not in v:
             raise ValueError(
                 f"Model must be prefixed with provider type. "
@@ -170,7 +181,7 @@ class Settings(BaseSettings):
         if provider not in valid_providers:
             raise ValueError(
                 f"Invalid provider: '{provider}'. "
-                f"Supported: 'nvidia_nim', 'open_router', 'lmstudio', 'llamacpp'"
+                f"Supported: 'nvidia_nim', 'open_router', 'lmstudio', 'llamacpp','glm' "
             )
         return v
 

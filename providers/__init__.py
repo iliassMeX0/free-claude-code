@@ -9,6 +9,7 @@ from .exceptions import (
     ProviderError,
     RateLimitError,
 )
+from .glm import ZAIProvider
 from .llamacpp import LlamaCppProvider
 from .lmstudio import LMStudioProvider
 from .nvidia_nim import NvidiaNimProvider
@@ -27,4 +28,5 @@ __all__ = [
     "ProviderConfig",
     "ProviderError",
     "RateLimitError",
+    "ZAIProvider",
 ]

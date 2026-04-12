@@ -36,6 +36,8 @@ def _isolate_from_dotenv(monkeypatch):
     monkeypatch.setattr(
         Settings, "model_config", {**Settings.model_config, "env_file": None}
     )
+    for key in ("MODEL_OPUS", "MODEL_SONNET", "MODEL_HAIKU"):
+        monkeypatch.delenv(key, raising=False)
 
 
 @pytest.fixture

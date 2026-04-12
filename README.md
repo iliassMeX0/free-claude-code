@@ -12,18 +12,48 @@
 [![Code style: Ruff](https://img.shields.io/badge/code%20formatting-ruff-f5a623.svg?style=for-the-badge)](https://github.com/astral-sh/ruff)
 [![Logging: Loguru](https://img.shields.io/badge/logging-loguru-4ecdc4.svg?style=for-the-badge)](https://github.com/Delgan/loguru)
 
-A lightweight proxy that routes Claude Code's Anthropic API calls to **NVIDIA NIM** (40 req/min free), **OpenRouter** (hundreds of models), **LM Studio** (fully local), or **llama.cpp** (local with Anthropic endpoints).
+A lightweight proxy that routes Claude Code's Anthropic API calls to **Z.ai** (GLM-5.1, coding-optimized), **NVIDIA NIM** (40 req/min free), **OpenRouter** (hundreds of models), **LM Studio** (fully local), or **llama.cpp** (local with Anthropic endpoints).
 
 [Quick Start](#quick-start) · [Providers](#providers) · [Discord Bot](#discord-bot) · [Configuration](#configuration) · [Development](#development) · [Contributing](#contributing)
 
 ---
 
-</div>
+## What's New
 
-<div align="center">
-  <img src="pic.png" alt="Free Claude Code in action" width="700">
-  <p><em>Claude Code running via NVIDIA NIM, completely free</em></p>
-</div>
+### Z.ai Integration (GLM-5.1)
+
+Full support for Z.ai as a provider with the GLM-5.1 model — a flagship model aligned with Claude Opus 4.6, purpose-built for agentic coding workflows.
+
+**What was added:**
+- **New provider**: `providers/glm/` — extends `OpenAICompatibleProvider` with native thinking mode (`reasoning_content`), function calling, and 200K context support
+- **Coding Plan endpoint**: Uses `api.z.ai/api/coding/paas/v4` for GLM Coding Plan subscribers ($10/month)
+- **Native thinking**: Sends `{"thinking": {"type": "enabled"}}` to get structured reasoning tokens, parsed into Claude thinking blocks
+- **Per-model config**: `ZAI_API_KEY` and `ZAI_BASE_URL` in `.env` — follows the same pattern as other providers
+- **Model prefix**: `glm/glm-5.1` — use in `MODEL`, `MODEL_OPUS`, `MODEL_SONNET`, or `MODEL_HAIKU`
+
+**Files modified:**
+| File | Change |
+|---|---|
+| `providers/glm/client.py` | Rebuilt — extends `OpenAICompatibleProvider` with Z.ai coding endpoint |
+| `providers/glm/request.py` | Rebuilt — uses shared `build_base_request_body` + native `thinking` mode |
+| `providers/glm/__init__.py` | Updated exports (`ZAIProvider`, `ZAI_BASE_URL`) |
+| `providers/__init__.py` | Added `ZAIProvider` to package exports |
+| `config/settings.py` | Added `zai_api_key`, `zai_base_url` fields; removed debug `print()` |
+| `api/dependencies.py` | Added `glm` provider branch with proper settings-based config |
+| `.env.example` | Added Z.ai config section |
+| `tests/conftest.py` | Fixed env isolation for `MODEL_OPUS`/`MODEL_SONNET`/`MODEL_HAIKU` |
+
+**How to use:**
+
+```dotenv
+ZAI_API_KEY="your-key"
+ZAI_BASE_URL="https://api.z.ai/api/coding/paas/v4"
+MODEL="glm/glm-5.1"
+```
+
+Then start the proxy and run Claude Code as usual. No other changes needed.
+
+---
 
 ## Features
 
@@ -31,9 +61,9 @@ A lightweight proxy that routes Claude Code's Anthropic API calls to **NVIDIA NI
 | -------------------------- | ----------------------------------------------------------------------------------------------- |
 | **Zero Cost**              | 40 req/min free on NVIDIA NIM. Free models on OpenRouter. Fully local with LM Studio            |
 | **Drop-in Replacement**    | Set 2 env vars. No modifications to Claude Code CLI or VSCode extension needed                  |
-| **4 Providers**            | NVIDIA NIM, OpenRouter (hundreds of models), LM Studio (local), llama.cpp (`llama-server`)      |
+| **5 Providers**            | Z.ai (GLM-5.1), NVIDIA NIM, OpenRouter (hundreds of models), LM Studio (local), llama.cpp      |
 | **Per-Model Mapping**      | Route Opus / Sonnet / Haiku to different models and providers. Mix providers freely             |
-| **Thinking Token Support** | Parses `<think>` tags and `reasoning_content` into native Claude thinking blocks                |
+| **Thinking Token Support** | Parses `<think/>` tags and `reasoning_content` into native Claude thinking blocks               |
 | **Heuristic Tool Parser**  | Models outputting tool calls as text are auto-parsed into structured tool use                   |
 | **Request Optimization**   | 5 categories of trivial API calls intercepted locally, saving quota and latency                 |
 | **Smart Rate Limiting**    | Proactive rolling-window throttle + reactive 429 exponential backoff + optional concurrency cap |
@@ -46,8 +76,9 @@ A lightweight proxy that routes Claude Code's Anthropic API calls to **NVIDIA NI
 ### Prerequisites
 
 1. Get an API key (or use LM Studio / llama.cpp locally):
-   - **NVIDIA NIM**: [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys)
-   - **OpenRouter**: [openrouter.ai/keys](https://openrouter.ai/keys)
+   - **Z.ai**: [z.ai/model-api](https://z.ai/model-api) — GLM Coding Plan from $10/month
+   - **NVIDIA NIM**: [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys) — free
+   - **OpenRouter**: [openrouter.ai/keys](https://openrouter.ai/keys) — free models available
    - **LM Studio**: No API key needed. Run locally with [LM Studio](https://lmstudio.ai)
    - **llama.cpp**: No API key needed. Run `llama-server` locally.
 2. Install [Claude Code](https://github.com/anthropics/claude-code)
@@ -70,7 +101,31 @@ cp .env.example .env
 Choose your provider and edit `.env`:
 
 <details>
-<summary><b>NVIDIA NIM</b> (40 req/min free, recommended)</summary>
+<summary><b>Z.ai</b> (GLM-5.1, recommended for coding)</summary>
+
+Z.ai's GLM-5.1 is a flagship model aligned with Claude Opus 4.6, optimized for agentic coding workflows. Supports 200K context, 128K output, native thinking mode, function calling, and structured output.
+
+```dotenv
+ZAI_API_KEY="your-zai-api-key-here"
+ZAI_BASE_URL="https://api.z.ai/api/coding/paas/v4"
+
+MODEL_OPUS="glm/glm-5.1"
+MODEL_SONNET="glm/glm-5.1"
+MODEL_HAIKU="glm/glm-5.1"
+MODEL="glm/glm-5.1"                                 # fallback
+```
+
+> **Important:** Use the **Coding Plan** endpoint (`api/coding/paas/v4`) if you have a GLM Coding Plan subscription. The general endpoint (`api/paas/v4`) is for pay-per-use API credits only.
+
+**Get started:**
+1. Register at [z.ai/model-api](https://z.ai/model-api)
+2. Subscribe to the [GLM Coding Plan](https://z.ai/subscribe) ($10/month) or top up credits at [Billing](https://z.ai/manage-apikey/billing)
+3. Create an API key at [API Keys](https://z.ai/manage-apikey/apikey-list)
+
+</details>
+
+<details>
+<summary><b>NVIDIA NIM</b> (40 req/min free)</summary>
 
 ```dotenv
 NVIDIA_NIM_API_KEY="nvapi-your-key-here"
@@ -283,21 +338,45 @@ free-claude-code    # starts the server
 
 ## Providers
 
-| Provider       | Cost         | Rate Limit | Best For                             |
-| -------------- | ------------ | ---------- | ------------------------------------ |
-| **NVIDIA NIM** | Free         | 40 req/min | Daily driver, generous free tier     |
-| **OpenRouter** | Free / Paid  | Varies     | Model variety, fallback options      |
-| **LM Studio**  | Free (local) | Unlimited  | Privacy, offline use, no rate limits |
-| **llama.cpp**  | Free (local) | Unlimited  | Lightweight local inference engine   |
+| Provider       | Cost           | Rate Limit | Best For                                       |
+| -------------- | -------------- | ---------- | ---------------------------------------------- |
+| **Z.ai**       | $10/mo plan    | Generous   | Agentic coding, GLM-5.1 (Opus 4.6-class)       |
+| **NVIDIA NIM** | Free           | 40 req/min | Daily driver, generous free tier               |
+| **OpenRouter** | Free / Paid    | Varies     | Model variety, fallback options                |
+| **LM Studio**  | Free (local)   | Unlimited  | Privacy, offline use, no rate limits           |
+| **llama.cpp**  | Free (local)   | Unlimited  | Lightweight local inference engine             |
 
 Models use a prefix format: `provider_prefix/model/name`. An invalid prefix causes an error.
 
-| Provider   | `MODEL` prefix    | API Key Variable     | Default Base URL              |
-| ---------- | ----------------- | -------------------- | ----------------------------- |
-| NVIDIA NIM | `nvidia_nim/...`  | `NVIDIA_NIM_API_KEY` | `integrate.api.nvidia.com/v1` |
-| OpenRouter | `open_router/...` | `OPENROUTER_API_KEY` | `openrouter.ai/api/v1`        |
-| LM Studio  | `lmstudio/...`    | (none)               | `localhost:1234/v1`           |
-| llama.cpp  | `llamacpp/...`    | (none)               | `localhost:8080/v1`           |
+| Provider   | `MODEL` prefix    | API Key Variable     | Default Base URL                        |
+| ---------- | ----------------- | -------------------- | --------------------------------------- |
+| Z.ai       | `glm/...`         | `ZAI_API_KEY`        | `api.z.ai/api/coding/paas/v4`          |
+| NVIDIA NIM | `nvidia_nim/...`  | `NVIDIA_NIM_API_KEY` | `integrate.api.nvidia.com/v1`          |
+| OpenRouter | `open_router/...` | `OPENROUTER_API_KEY` | `openrouter.ai/api/v1`                 |
+| LM Studio  | `lmstudio/...`    | (none)               | `localhost:1234/v1`                    |
+| llama.cpp  | `llamacpp/...`    | (none)               | `localhost:8080/v1`                    |
+
+<details>
+<summary><b>Z.ai models</b></summary>
+
+Z.ai offers the GLM family of models, optimized for coding and agentic workflows:
+
+- `glm/glm-5.1` — Flagship model (Opus 4.6-class). 200K context, 128K output, native thinking, function calling
+
+**Key features:**
+- Native `thinking` mode with structured `reasoning_content` streaming
+- Function calling / tool use support
+- 200K token context window
+- 128K max output tokens
+- Optimized for long-horizon autonomous coding tasks
+
+**Endpoint notes:**
+- **GLM Coding Plan** subscribers: use `https://api.z.ai/api/coding/paas/v4`
+- **Pay-per-use** credits: use `https://api.z.ai/api/paas/v4`
+
+Browse: [z.ai/model-api](https://z.ai/model-api) · Docs: [docs.z.ai](https://docs.z.ai/guides/overview/quick-start)
+
+</details>
 
 <details>
 <summary><b>NVIDIA NIM models</b></summary>
@@ -446,6 +525,8 @@ Configure via `WHISPER_DEVICE` (`cpu` | `cuda` | `nvidia_nim`) and `WHISPER_MODE
 | `MODEL_OPUS`         | Model for Claude Opus requests (falls back to `MODEL`)                | `nvidia_nim/z-ai/glm4.7`                          |
 | `MODEL_SONNET`       | Model for Claude Sonnet requests (falls back to `MODEL`)              | `open_router/arcee-ai/trinity-large-preview:free` |
 | `MODEL_HAIKU`        | Model for Claude Haiku requests (falls back to `MODEL`)               | `open_router/stepfun/step-3.5-flash:free`         |
+| `ZAI_API_KEY`        | Z.ai API key                                                          | required for Z.ai                                 |
+| `ZAI_BASE_URL`       | Z.ai API base URL (use `coding/paas/v4` for Coding Plan)             | `https://api.z.ai/api/coding/paas/v4`             |
 | `NVIDIA_NIM_API_KEY`    | NVIDIA API key                                                        | required for NIM                                  |
 | `NIM_ENABLE_THINKING`   | Send `chat_template_kwargs` + `reasoning_budget` on NIM requests. Enable for thinking models (kimi, nemotron); leave `false` for others (e.g. Mistral) | `false` |
 | `OPENROUTER_API_KEY` | OpenRouter API key                                                    | required for OpenRouter                           |
@@ -508,7 +589,7 @@ See [`.env.example`](.env.example) for all supported parameters.
 free-claude-code/
 ├── server.py              # Entry point
 ├── api/                   # FastAPI routes, request detection, optimization handlers
-├── providers/             # BaseProvider, OpenAICompatibleProvider, NIM, OpenRouter, LM Studio, llamacpp
+├── providers/             # BaseProvider, OpenAICompatibleProvider, Z.ai, NIM, OpenRouter, LM Studio, llamacpp
 │   └── common/            # Shared utils (SSE builder, message converter, parsers, error mapping)
 ├── messaging/             # MessagingPlatform ABC + Discord/Telegram bots, session management
 ├── config/                # Settings, NIM config, logging

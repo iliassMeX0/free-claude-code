@@ -1,5 +1,5 @@
 <div align="center">
-ccc7de4a818347c18893798a62087f43.sGHf8hGrJQWSg6Qx
+
 # 🤖 Free Claude Code
 
 ### Use Claude Code CLI & VSCode for free. No Anthropic API key required.
